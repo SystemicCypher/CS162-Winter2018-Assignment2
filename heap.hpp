@@ -129,7 +129,8 @@ public:
   // You should define allocate in impl.cpp
   obj_ptr allocate(int32_t size);
 
-  void objCopy(obj_ptr& toDup, byte* alloc);
+  void objCopyA(obj_ptr& toDup);
+  void objCopyB(obj_ptr& toDup, byte* alloc);
 
   // You should define collect in impl.cpp
   void    collect();

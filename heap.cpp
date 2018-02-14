@@ -32,32 +32,27 @@ void Heap::debug(std::string x) {
 // this method should throw an OutOfMemoryException.
 obj_ptr Heap::allocate(int32_t size) {
   if(bump_ptr + size > heap_size/2){
-    debug("Need 2 collect!");
+    //debug("Need 2 collect!");
     collect();
   }
   if(bump_ptr + size > heap_size/2){
     throw OutOfMemoryException();
-    //debug();
     return 0;
   }
-  debug("Allocating...");
   obj_ptr allocatedStart = bump_ptr;
   bump_ptr += size;
   return allocatedStart;
 }
 
-void Heap::objCopy(obj_ptr& toDup, byte* alloc){
+void Heap::objCopyA(obj_ptr& toDup){
   if(forward.count(toDup) == 1 && toDup != nil_ptr){
-      debug("Found!");
       toDup = local_address(forward[toDup]);
-      return;
   }
   else if(toDup == nil_ptr){
-    debug("Nonexistent!");
-    return;
+    //debug("NOTHING");
   }
   else{
-    debug("objCopy");
+    //debug("objCopy");
 
     auto type = get_object_type(toDup);
     size_t size = 0;
@@ -66,88 +61,131 @@ void Heap::objCopy(obj_ptr& toDup, byte* alloc){
       case FOO: {
         size = sizeof(Foo);
         dexter = global_address<Foo>(toDup);
-        debug("FOO");
+        //debug("FOO");
         break;
       }
       case BAR: {
         size = sizeof(Bar);
         dexter = global_address<Bar>(toDup);
-        debug("BAR");
+        //debug("BAR");
         break;
       }
       case BAZ: {
         size = sizeof(Baz);
         dexter = global_address<Baz>(toDup);
-        debug("BAZ");
+        //debug("BAZ");
+        break;
+      }
+    }
+    auto allocate = to + bump_ptr;
+    memcpy(allocate, dexter, size);
+    forward[toDup] = allocate;
+    toDup = bump_ptr;
+    bump_ptr += size;
+  }
+}
+
+void Heap::objCopyB(obj_ptr& toDup, byte* alloc){
+  if(forward.count(toDup) == 1 && toDup != nil_ptr){
+      toDup = local_address(forward[toDup]);
+  }
+  else if(toDup == nil_ptr){
+    //debug("NOTHING");
+  }
+  else{
+    //debug("objCopy");
+
+    auto type = get_object_type(toDup);
+    size_t size = 0;
+    void* dexter = NULL;
+    switch(type) {
+      case FOO: {
+        size = sizeof(Foo);
+        dexter = global_address<Foo>(toDup);
+        //debug("FOO");
+        break;
+      }
+      case BAR: {
+        size = sizeof(Bar);
+        dexter = global_address<Bar>(toDup);
+        //debug("BAR");
+        break;
+      }
+      case BAZ: {
+        size = sizeof(Baz);
+        dexter = global_address<Baz>(toDup);
+        //debug("BAZ");
         break;
       }
     }
     memcpy(alloc, dexter, size);
     forward[toDup] = alloc;
-    std::cout<<"Before: "<<toDup<<" "<<bump_ptr<<" -dumped\n";
-    alloc += size;
     toDup = bump_ptr;
     bump_ptr += size;
-    std::cout<<"After: "<<toDup<<" "<<bump_ptr<<" -dumped\n";
   }
 }
 
 // This method should implement the actual semispace garbage collection.
 // As a final result this method *MUST* call print();
 void Heap::collect() {
-  bump_ptr = heap_size/2; //heap-local pointer 0 to end of fromspace. Can't modify the object.
-  auto allocptr = to; //global pointer, actual memory address. Can modify the object.
+  bump_ptr = 0; //heap-local pointer 0 to end of fromspace. Can't modify the object.
+  //auto allocptr = to; //global pointer, actual memory address. But only to the space.
   //auto scanptr = to; //global pointer to get the subtree stuff
 
 
   for(auto& root : root_set){
-    std::cout<<root.first<<" "<<root.second<<"\n";
-    objCopy(root.second, allocptr);
-    std::cout<<root.second<<"\n";
-    debug("Done with root");
+    //std::cout<<root.first<<" "<<root.second<<"\n";
+    objCopyA(root.second);
+    //std::cout<<root.second<<"\n";
+    //debug("Done with root");
   }
 
-  int32_t scanbump_ptr = heap_size/2;
-  while(scanbump_ptr < bump_ptr){
-    debug("Scalloc");
+  int32_t scanbump_ptr = 0;
+  byte* scanptr = to;
+  byte* allocatptr = to + bump_ptr;
+  while(scanptr < allocatptr){
+    //debug("Scalloc");
     void* scanned = NULL;
-    auto type = get_object_type(scanbump_ptr);
-    size_t size;
+    auto type = get_object_type(scanptr-from);
+    int32_t size;
     switch(type) {
       case FOO: {
         size = sizeof(Foo);
-        scanned = global_address<Foo>(scanbump_ptr);
+        scanned = global_address<Foo>(scanptr-from);
         break;
       }
       case BAR: {
         size = sizeof(Bar);
-        scanned = global_address<Bar>(scanbump_ptr);
+        scanned = global_address<Bar>(scanptr-from);
         break;
       }
       case BAZ: {
         size = sizeof(Baz);
-        scanned = global_address<Baz>(scanbump_ptr);
+        scanned = global_address<Baz>(scanptr-from);
         break;
       }
     }
 
     if(type == FOO){
       Foo* scannedF = static_cast<Foo*>(scanned);
-      objCopy(scannedF->c, allocptr);
-      objCopy(scannedF->d, allocptr);
+      objCopyB(scannedF->c, allocatptr);
+      allocatptr = to + bump_ptr;
+      objCopyB(scannedF->d, allocatptr);
     }
     else if(type == BAR){
       Bar* scannedB = static_cast<Bar*>(scanned);
-      objCopy(scannedB->c, allocptr);
-      objCopy(scannedB->f, allocptr);
+      objCopyB(scannedB->c, allocatptr);
+      allocatptr = to + bump_ptr;
+      objCopyB(scannedB->f, allocatptr);
     }
     else if(type == BAZ){
       Baz* scannedZ = static_cast<Baz*>(scanned);
-      objCopy(scannedZ->b, allocptr);
-      objCopy(scannedZ->c, allocptr);
+      objCopyB(scannedZ->b, allocatptr);
+      allocatptr = to + bump_ptr;
+      objCopyB(scannedZ->c, allocatptr);
     }
-
-    //scanptr += size;
+    allocatptr = to + bump_ptr;
+    scanptr += size;
     scanbump_ptr += size;
   }
   forward.erase(forward.begin(), forward.end());
