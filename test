@@ -1,6 +1,12 @@
 x=Foo
-y=Foo
+y=Baz
 z=Foo
-a=Foo
-a.c=Bar
+a=Baz
+b=Foo
+
+COLLECT
+
+
+
+
 

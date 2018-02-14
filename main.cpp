@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
     if(line == "DEBUG") {
-      heap.debug();
+      heap.debug("CALLED");
       continue;
     }
     if(line == "COLLECT") {

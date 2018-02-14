@@ -116,6 +116,7 @@ class Heap {
   uint32_t object_id = 0;
 
   std::map<obj_ptr, byte*> forward;
+  int counter = 0;
 
 public:
   Heap(int32_t heap_size);
@@ -124,13 +125,13 @@ public:
   // You should define allocate in impl.cpp
   obj_ptr allocate(int32_t size);
 
-  void objCopy(obj_ptr& toDup, byte* alloc, int32_t& bump);
+  void objCopy(obj_ptr& toDup, byte* alloc);
 
   // You should define collect in impl.cpp
   void    collect();
 
   // You should optionally define debug in impl.cpp
-  void    debug();
+  void    debug(std::string x);
 
   // This method will dump (print) all objects currently in the from space.
   // Do *not* alter this, as it is used for grading. It can also help you

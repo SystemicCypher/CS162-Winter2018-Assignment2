@@ -19,8 +19,9 @@ Heap::~Heap() {
 // It's not mandatory to implement it, but would be a very useful
 // debugging tool. It's called whenever the DEBUG command is found
 // in the input program.
-void Heap::debug() {
-  std::cout<<"memory?\n";
+void Heap::debug(std::string x) {
+  std::cout<<"Reached "<<x<<" "<<counter<<std::endl;
+  counter++;
 }
 
 // The allocate method allocates a chunk of memory of given size.
@@ -31,48 +32,63 @@ void Heap::debug() {
 // this method should throw an out_of_memory exception.
 obj_ptr Heap::allocate(int32_t size) {
   if(bump_ptr + size > heap_size/2){
+    debug("Need 2 collect!");
     collect();
-    //debug();
   }
   if(bump_ptr + size > heap_size/2){
-    OutOfMemoryException::OutOfMemoryException();
+    throw OutOfMemoryException();
+    //debug();
     return 0;
   }
+  debug("Allocating...");
   obj_ptr allocatedStart = bump_ptr;
   bump_ptr += size;
   return allocatedStart;
 }
 
-void Heap::objCopy(obj_ptr& toDup, byte* alloc, int32_t& bump){
-  if(forward.count(toDup) == 1){
+void Heap::objCopy(obj_ptr& toDup, byte* alloc){
+  if(forward.count(toDup) == 1 && toDup != nil_ptr){
+      debug("Found!");
       toDup = local_address(forward[toDup]);
+      return;
+  }
+  else if(toDup == nil_ptr){
+    debug("Nonexistent!");
+    return;
   }
   else{
+    debug("objCopy");
+
     auto type = get_object_type(toDup);
-    size_t size;
+    size_t size = 0;
     void* dexter = NULL;
     switch(type) {
       case FOO: {
         size = sizeof(Foo);
         dexter = global_address<Foo>(toDup);
+        debug("FOO");
         break;
       }
       case BAR: {
         size = sizeof(Bar);
         dexter = global_address<Bar>(toDup);
+        debug("BAR");
         break;
       }
       case BAZ: {
         size = sizeof(Baz);
         dexter = global_address<Baz>(toDup);
+        debug("BAZ");
         break;
       }
     }
     memcpy(alloc, dexter, size);
     forward[toDup] = alloc;
+    std::cout<<"Before: "<<toDup<<" "<<bump_ptr<<" -dumped\n";
     alloc += size;
-    toDup = bump;
-    bump += size;
+    toDup = bump_ptr;
+    bump_ptr += size;
+    std::cout<<"After: "<<toDup<<" "<<bump_ptr<<" -dumped\n";
   }
 }
 
@@ -81,15 +97,19 @@ void Heap::objCopy(obj_ptr& toDup, byte* alloc, int32_t& bump){
 void Heap::collect() {
   bump_ptr = heap_size/2; //heap-local pointer 0 to end of fromspace. Can't modify the object.
   auto allocptr = to; //global pointer, actual memory address. Can modify the object.
-  auto scanptr = to; //global pointer to get the subtree stuff
+  //auto scanptr = to; //global pointer to get the subtree stuff
 
 
   for(auto& root : root_set){
-    objCopy(root.second, allocptr, bump_ptr);
+    std::cout<<root.first<<" "<<root.second<<"\n";
+    objCopy(root.second, allocptr);
+    std::cout<<root.second<<"\n";
+    debug("Done with root");
   }
 
   int32_t scanbump_ptr = heap_size/2;
-  while(scanptr < allocptr){
+  while(scanbump_ptr < bump_ptr){
+    debug("Scalloc");
     void* scanned = NULL;
     auto type = get_object_type(scanbump_ptr);
     size_t size;
@@ -113,28 +133,30 @@ void Heap::collect() {
 
     if(type == FOO){
       Foo* scannedF = static_cast<Foo*>(scanned);
-      objCopy(scannedF->c, allocptr, bump_ptr);
-      objCopy(scannedF->d, allocptr, bump_ptr);
+      objCopy(scannedF->c, allocptr);
+      objCopy(scannedF->d, allocptr);
     }
     else if(type == BAR){
       Bar* scannedB = static_cast<Bar*>(scanned);
-      objCopy(scannedB->c, allocptr, bump_ptr);
-      objCopy(scannedB->f, allocptr, bump_ptr);
+      objCopy(scannedB->c, allocptr);
+      objCopy(scannedB->f, allocptr);
     }
     else if(type == BAZ){
       Baz* scannedZ = static_cast<Baz*>(scanned);
-      objCopy(scannedZ->b, allocptr, bump_ptr);
-      objCopy(scannedZ->c, allocptr, bump_ptr);
+      objCopy(scannedZ->b, allocptr);
+      objCopy(scannedZ->c, allocptr);
     }
 
-    scanptr += size;
+    //scanptr += size;
     scanbump_ptr += size;
   }
+  forward.erase(forward.begin(), forward.end());
 
   //swapping
-  auto temp = from;
+  auto temp = to;
   to = from;
   from = temp;
+  
   // Please do not remove the call to print, it has to be the final
   // operation in the method for your assignment to be graded.
   print();
@@ -232,6 +254,7 @@ void Heap::print() {
   std::map<int32_t, const char*> objects;
 
   while(position < (from + heap_size / 2) && position < (from + bump_ptr)) {
+
     object_type type = *reinterpret_cast<object_type*>(position);
     switch(type) {
       case FOO: {
