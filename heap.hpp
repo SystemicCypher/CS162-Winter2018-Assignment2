@@ -115,12 +115,16 @@ class Heap {
   // You don't need to touch this in any way.
   uint32_t object_id = 0;
 
+  std::map<obj_ptr, byte*> forward;
+
 public:
   Heap(int32_t heap_size);
   ~Heap();
 
   // You should define allocate in impl.cpp
   obj_ptr allocate(int32_t size);
+
+  void objCopy(obj_ptr& toDup, byte* alloc, int32_t& bump);
 
   // You should define collect in impl.cpp
   void    collect();

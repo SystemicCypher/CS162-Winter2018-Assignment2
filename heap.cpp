@@ -20,7 +20,7 @@ Heap::~Heap() {
 // debugging tool. It's called whenever the DEBUG command is found
 // in the input program.
 void Heap::debug() {
-  // Implement me
+  std::cout<<"memory?\n";
 }
 
 // The allocate method allocates a chunk of memory of given size.
@@ -30,14 +30,111 @@ void Heap::debug() {
 // enough memory. If there is still insufficient memory after garbage collection,
 // this method should throw an out_of_memory exception.
 obj_ptr Heap::allocate(int32_t size) {
-  // Implement me
+  if(bump_ptr + size > heap_size/2){
+    collect();
+    //debug();
+  }
+  if(bump_ptr + size > heap_size/2){
+    OutOfMemoryException::OutOfMemoryException();
+    return 0;
+  }
+  obj_ptr allocatedStart = bump_ptr;
+  bump_ptr += size;
+  return allocatedStart;
+}
+
+void Heap::objCopy(obj_ptr& toDup, byte* alloc, int32_t& bump){
+  if(forward.count(toDup) == 1){
+      toDup = local_address(forward[toDup]);
+  }
+  else{
+    auto type = get_object_type(toDup);
+    size_t size;
+    void* dexter = NULL;
+    switch(type) {
+      case FOO: {
+        size = sizeof(Foo);
+        dexter = global_address<Foo>(toDup);
+        break;
+      }
+      case BAR: {
+        size = sizeof(Bar);
+        dexter = global_address<Bar>(toDup);
+        break;
+      }
+      case BAZ: {
+        size = sizeof(Baz);
+        dexter = global_address<Baz>(toDup);
+        break;
+      }
+    }
+    memcpy(alloc, dexter, size);
+    forward[toDup] = alloc;
+    alloc += size;
+    toDup = bump;
+    bump += size;
+  }
 }
 
 // This method should implement the actual semispace garbage collection.
 // As a final result this method *MUST* call print();
 void Heap::collect() {
-  // Implement me
+  bump_ptr = heap_size/2; //heap-local pointer 0 to end of fromspace. Can't modify the object.
+  auto allocptr = to; //global pointer, actual memory address. Can modify the object.
+  auto scanptr = to; //global pointer to get the subtree stuff
 
+
+  for(auto& root : root_set){
+    objCopy(root.second, allocptr, bump_ptr);
+  }
+
+  int32_t scanbump_ptr = heap_size/2;
+  while(scanptr < allocptr){
+    void* scanned = NULL;
+    auto type = get_object_type(scanbump_ptr);
+    size_t size;
+    switch(type) {
+      case FOO: {
+        size = sizeof(Foo);
+        scanned = global_address<Foo>(scanbump_ptr);
+        break;
+      }
+      case BAR: {
+        size = sizeof(Bar);
+        scanned = global_address<Bar>(scanbump_ptr);
+        break;
+      }
+      case BAZ: {
+        size = sizeof(Baz);
+        scanned = global_address<Baz>(scanbump_ptr);
+        break;
+      }
+    }
+
+    if(type == FOO){
+      Foo* scannedF = static_cast<Foo*>(scanned);
+      objCopy(scannedF->c, allocptr, bump_ptr);
+      objCopy(scannedF->d, allocptr, bump_ptr);
+    }
+    else if(type == BAR){
+      Bar* scannedB = static_cast<Bar*>(scanned);
+      objCopy(scannedB->c, allocptr, bump_ptr);
+      objCopy(scannedB->f, allocptr, bump_ptr);
+    }
+    else if(type == BAZ){
+      Baz* scannedZ = static_cast<Baz*>(scanned);
+      objCopy(scannedZ->b, allocptr, bump_ptr);
+      objCopy(scannedZ->c, allocptr, bump_ptr);
+    }
+
+    scanptr += size;
+    scanbump_ptr += size;
+  }
+
+  //swapping
+  auto temp = from;
+  to = from;
+  from = temp;
   // Please do not remove the call to print, it has to be the final
   // operation in the method for your assignment to be graded.
   print();
