@@ -3,32 +3,34 @@ y=Foo
 z=Foo
 
 x.c = Baz
-PRINT
+
 
 x.c=NULL #removes 3Baz
-COLLECT
+
 
 x.c = Bar #replaces with 4Bar
-PRINT
+
 
 x.d=y  #saves 1Foo
 y = NULL #loses 1 connection to 1Foo
-COLLECT
+
 
 x.c = NULL #removes 4Bar
-COLLECT
+
 
 x.d=NULL #removes 1Foo
-COLLECT
 
-x.c = Baz
+
+x.c = Baz #creates 5Baz
+
+
+x.c.c=Baz #creates 6Baz
+
+
+x.c.c=NULL #removes 6BAz
+x.c.b=Foo #creates 7Foo
+x.c.b = NULL #remoces 7Foo
+a = Baz #creates 8Baz
 PRINT
-
-x.c.c=Baz
-PRINT
-
-x.c.c=NULL
-COLLECT
-
 
 
